@@ -1,12 +1,3 @@
-<!-- LOVABLE:BEGIN -->
+# NIO Landing Page & Sistema de Leads
 
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-
-<!-- LOVABLE:END -->
+Landing page de alta conversão para internet fibra com redirecionamento estratégico e rastreado para o WhatsApp oficial, gerenciada por bot inteligente no Telegram com suporte a múltiplos administradores e aprovação por Super-Administrador.

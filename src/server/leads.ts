@@ -387,11 +387,24 @@ export async function listarLeadsRecentes(limite = 10): Promise<Lead[]> {
   return leads;
 }
 
+export const TITULO_PADRAO = "NIO | Internet Fibra e Central de Atendimento";
+export const FAVICON_PADRAO = "/favicon.png";
+
 export async function obterConfigSite(): Promise<SiteConfig> {
   const config = await getStore().obterConfig();
-  if (config) return config;
+  if (config) {
+    return {
+      whatsapp: config.whatsapp || getConfig().defaultWhatsapp,
+      titulo: config.titulo || TITULO_PADRAO,
+      favicon: config.favicon || FAVICON_PADRAO,
+      atualizadoEm: config.atualizadoEm,
+      ...(config.atualizadoPor ? { atualizadoPor: config.atualizadoPor } : {}),
+    };
+  }
   return {
     whatsapp: getConfig().defaultWhatsapp,
+    titulo: TITULO_PADRAO,
+    favicon: FAVICON_PADRAO,
     atualizadoEm: new Date(0).toISOString(),
   };
 }
@@ -401,8 +414,42 @@ export async function definirWhatsappSite(numero: string, autor: string): Promis
   if (!telefone) {
     throw new ErroValidacao("Número inválido. Envie DDD + número, por exemplo: 11 95386-6646.");
   }
+  const atual = await obterConfigSite();
   const config: SiteConfig = {
+    ...atual,
     whatsapp: telefone,
+    atualizadoEm: new Date().toISOString(),
+    atualizadoPor: sanitizeTexto(autor, 40),
+  };
+  await getStore().salvarConfig(config);
+  return config;
+}
+
+export async function definirTituloSite(titulo: string, autor: string): Promise<SiteConfig> {
+  const limpo = sanitizeTexto(titulo, 120);
+  if (limpo.length < 3) {
+    throw new ErroValidacao("Título muito curto. Informe ao menos 3 caracteres.");
+  }
+  const atual = await obterConfigSite();
+  const config: SiteConfig = {
+    ...atual,
+    titulo: limpo,
+    atualizadoEm: new Date().toISOString(),
+    atualizadoPor: sanitizeTexto(autor, 40),
+  };
+  await getStore().salvarConfig(config);
+  return config;
+}
+
+export async function definirFaviconSite(favicon: string, autor: string): Promise<SiteConfig> {
+  const limpo = sanitizeTexto(favicon, 300);
+  if (!limpo.startsWith("/") && !limpo.startsWith("http://") && !limpo.startsWith("https://")) {
+    throw new ErroValidacao("O caminho do favicon deve começar com / ou http(s)://");
+  }
+  const atual = await obterConfigSite();
+  const config: SiteConfig = {
+    ...atual,
+    favicon: limpo,
     atualizadoEm: new Date().toISOString(),
     atualizadoPor: sanitizeTexto(autor, 40),
   };

@@ -148,9 +148,18 @@ async function tratarConfig(request: Request): Promise<Response> {
   await aplicarLimite(request, "config", LIMITE_CONFIG_MINUTO, 60);
 
   const config = await obterConfigSite();
-  return jsonResposta({ whatsapp: config.whatsapp, atualizadoEm: config.atualizadoEm }, 200, {
-    "Cache-Control": "public, max-age=0, s-maxage=15, stale-while-revalidate=45",
-  });
+  return jsonResposta(
+    {
+      whatsapp: config.whatsapp,
+      titulo: config.titulo,
+      favicon: config.favicon,
+      atualizadoEm: config.atualizadoEm,
+    },
+    200,
+    {
+      "Cache-Control": "public, max-age=0, s-maxage=15, stale-while-revalidate=45",
+    },
+  );
 }
 
 async function tratarWebhook(request: Request, ctx: ContextoExecucao): Promise<Response> {

@@ -10,7 +10,25 @@ import type { BotaoInline, TecladoInline } from "./api";
  * A: aprovar solicitação (super-admin)
  * R: rejeitar solicitação (super-admin)
  */
-export const ACOES = ["m", "s", "g", "v", "q", "l", "d", "e", "n", "c", "p", "o", "w", "A", "R"] as const;
+export const ACOES = [
+  "m",
+  "s",
+  "g",
+  "v",
+  "q",
+  "l",
+  "d",
+  "e",
+  "n",
+  "c",
+  "p",
+  "o",
+  "w",
+  "A",
+  "R",
+  "T",
+  "F",
+] as const;
 export type Acao = (typeof ACOES)[number];
 
 const VERSAO = "1";
@@ -67,7 +85,18 @@ export async function tecladoMenu(): Promise<TecladoInline> {
     inline_keyboard: [
       [await botao("📊 Métricas", "s", "agora"), await botao("📍 Localidades", "g", "geo")],
       [await botao("📱 Dispositivos", "v", "dev"), await botao("🌱 Qualidade", "q", "qual")],
-      [await botao("👥 Leads", "l", "0"), await botao("☎️ Nº do site", "o", "site")],
+      [await botao("👥 Leads", "l", "0"), await botao("⚙️ Identidade do Site", "T", "ver")],
+    ],
+  };
+}
+
+/** Teclado de personalização do site (Título, Favicon, WhatsApp). */
+export async function tecladoIdentidadeSite(): Promise<TecladoInline> {
+  return {
+    inline_keyboard: [
+      [await botao("✏️ Alterar Título", "T", "mudar"), await botao("🖼️ Alterar Favicon", "F", "mudar")],
+      [await botao("☎️ Nº do WhatsApp", "o", "site")],
+      [await botao("🔄 Recarregar", "T", "ver"), await botao("🏠 Menu", "m", "home")],
     ],
   };
 }

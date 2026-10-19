@@ -2,7 +2,9 @@ import { getConfig } from "../env";
 import {
   atualizarEtapaLead,
   atualizarWhatsappLead,
+  definirFaviconSite,
   definirObservacao,
+  definirTituloSite,
   definirWhatsappSite,
   listarLeadsRecentes,
   obterConfigSite,
@@ -26,6 +28,7 @@ import {
   mensagemAlerta,
   mensagemDispositivos,
   mensagemGeo,
+  mensagemIdentidadeSite,
   mensagemInicio,
   mensagemLead,
   mensagemLista,
@@ -40,6 +43,7 @@ import {
   lerCallback,
   paginar,
   tecladoAprovacao,
+  tecladoIdentidadeSite,
   tecladoLead,
   tecladoLista,
   tecladoMenu,
@@ -112,6 +116,8 @@ async function mostrar(cq: CallbackQuery, texto: string, teclado: TecladoInline)
 /** Rótulos legíveis das ações que precisam de aprovação. */
 const ROTULO_ACAO: Record<AprovacaoPendente["acao"], string> = {
   mudar_numero_site: "☎️ Mudar número oficial do site",
+  mudar_titulo_site: "🏷️ Alterar Título da Landing Page",
+  mudar_favicon_site: "🖼️ Alterar Favicon da Landing Page",
   converter_lead: "✅ Marcar lead como Convertido",
   perder_lead: "⚫ Marcar lead como Perdido",
   usar_numero_lead_no_site: "🌐 Usar número do lead no site",
@@ -132,6 +138,14 @@ function descricaoAcao(aprovacao: AprovacaoPendente): string {
       linhas.push(
         "<i>Esse número passará a ser exibido no site para todos os visitantes imediatamente.</i>",
       );
+      break;
+    case "mudar_titulo_site":
+      linhas.push(`🏷️ <b>Novo Título:</b> <code>${esc(payload["titulo"] ?? "—")}</code>`);
+      linhas.push("<i>Este título aparecerá na aba do navegador e no SEO para todos os visitantes.</i>");
+      break;
+    case "mudar_favicon_site":
+      linhas.push(`🖼️ <b>Novo Favicon:</b> <code>${esc(payload["favicon"] ?? "—")}</code>`);
+      linhas.push("<i>O ícone da aba do navegador será atualizado imediatamente.</i>");
       break;
     case "converter_lead":
       linhas.push(`👤 <b>Lead:</b> <code>#${esc(payload["leadId"]?.slice(0, 8) ?? "—")}</code>`);
@@ -206,6 +220,16 @@ async function executarAcaoAprovada(aprovacao: AprovacaoPendente, autor: string)
       case "mudar_numero_site": {
         const config = await definirWhatsappSite(payload["numero"]!, autor);
         mensagemResultado = `✅ <b>Aprovado e executado!</b>\n\nNúmero do site alterado para <b>${esc(config.whatsapp)}</b>.`;
+        break;
+      }
+      case "mudar_titulo_site": {
+        const config = await definirTituloSite(payload["titulo"]!, autor);
+        mensagemResultado = `✅ <b>Aprovado e executado!</b>\n\nTítulo da página alterado para:\n<b>${esc(config.titulo)}</b>`;
+        break;
+      }
+      case "mudar_favicon_site": {
+        const config = await definirFaviconSite(payload["favicon"]!, autor);
+        mensagemResultado = `✅ <b>Aprovado e executado!</b>\n\nFavicon alterado para:\n<code>${esc(config.favicon)}</code>`;
         break;
       }
       case "converter_lead": {
@@ -328,7 +352,7 @@ async function aplicarResposta(
       const config = await definirWhatsappSite(texto, autor);
       return {
         texto: `✅ <b>Número do site atualizado</b>\n\n☎️ <b>${esc(config.whatsapp)}</b>\n\nO site já mostra este número na próxima renderização.`,
-        teclado: await tecladoMenu(),
+        teclado: await tecladoIdentidadeSite(),
       };
     } else {
       // Admin regular: envia para aprovação
@@ -340,6 +364,50 @@ async function aplicarResposta(
       );
       return {
         texto: `🔔 <b>Solicitação enviada ao super-admin</b>\n\nNúmero <code>${esc(texto)}</code> aguarda aprovação.\nVocê será notificado quando for aprovado ou rejeitado.`,
+        teclado: await tecladoMenu(),
+      };
+    }
+  }
+
+  if (pendente.tipo === "titulo_site") {
+    const isSA = ehSuperAdmin(solicitanteChatId);
+    if (isSA) {
+      const config = await definirTituloSite(texto, autor);
+      return {
+        texto: `✅ <b>Título do site atualizado</b>\n\n🏷️ <b>${esc(config.titulo)}</b>\n\nA alteração já está visível para os visitantes.`,
+        teclado: await tecladoIdentidadeSite(),
+      };
+    } else {
+      await solicitarAprovacao(
+        "mudar_titulo_site",
+        { titulo: texto },
+        solicitanteChatId,
+        autor,
+      );
+      return {
+        texto: `🔔 <b>Solicitação enviada ao super-admin</b>\n\nTítulo <code>${esc(texto)}</code> aguarda aprovação.\nVocê será notificado assim que for analisado.`,
+        teclado: await tecladoMenu(),
+      };
+    }
+  }
+
+  if (pendente.tipo === "favicon_site") {
+    const isSA = ehSuperAdmin(solicitanteChatId);
+    if (isSA) {
+      const config = await definirFaviconSite(texto, autor);
+      return {
+        texto: `✅ <b>Favicon do site atualizado</b>\n\n🖼️ <code>${esc(config.favicon)}</code>\n\nO novo ícone já está configurado.`,
+        teclado: await tecladoIdentidadeSite(),
+      };
+    } else {
+      await solicitarAprovacao(
+        "mudar_favicon_site",
+        { favicon: texto },
+        solicitanteChatId,
+        autor,
+      );
+      return {
+        texto: `🔔 <b>Solicitação enviada ao super-admin</b>\n\nFavicon <code>${esc(texto)}</code> aguarda aprovação.\nVocê será notificado assim que for analisado.`,
         teclado: await tecladoMenu(),
       };
     }
@@ -476,6 +544,48 @@ async function tratarCallback(cq: CallbackQuery): Promise<void> {
         await tecladoMenu(),
       );
       await responderCallback(cq.id, "Rejeitado ❌");
+      return;
+    }
+
+    // --- Identidade do Site (Título e Favicon com preview real) -----------
+    if (validado.acao === "T" && validado.payload === "ver") {
+      const config = await obterConfigSite();
+      await mostrar(cq, mensagemIdentidadeSite(config), await tecladoIdentidadeSite());
+      await responderCallback(cq.id);
+      return;
+    }
+
+    if (validado.acao === "T" && validado.payload === "mudar") {
+      const promptId = await enviarComForca(
+        chatId,
+        "🏷️ <b>Alterar Título da Landing Page</b>\n\nResponda <b>esta mensagem</b> com o novo título que você deseja para a página.\n\n<i>Exemplo: NIO | Internet Fibra e Central de Atendimento</i>",
+        cq.message?.message_id ?? 0,
+      );
+      if (promptId) {
+        await getStore().definirPendente(chatId, {
+          tipo: "titulo_site",
+          mensagemId: promptId,
+          expiraEm: Date.now() + DURACAO_PENDENTE_MS,
+        });
+      }
+      await responderCallback(cq.id, "Responda a mensagem com o novo título");
+      return;
+    }
+
+    if (validado.acao === "F" && validado.payload === "mudar") {
+      const promptId = await enviarComForca(
+        chatId,
+        "🖼️ <b>Alterar Favicon da Landing Page</b>\n\nResponda <b>esta mensagem</b> com o caminho ou URL do novo ícone (ex: <code>/favicon.png</code> ou link <code>https://...</code>).\n\n<i>A imagem precisa ser um ícone ou logo quadrada.</i>",
+        cq.message?.message_id ?? 0,
+      );
+      if (promptId) {
+        await getStore().definirPendente(chatId, {
+          tipo: "favicon_site",
+          mensagemId: promptId,
+          expiraEm: Date.now() + DURACAO_PENDENTE_MS,
+        });
+      }
+      await responderCallback(cq.id, "Responda a mensagem com o caminho do favicon");
       return;
     }
 

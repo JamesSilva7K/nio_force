@@ -27,42 +27,60 @@ import {
 import { WhatsappIcon } from "@/components/icons/whatsapp";
 import { formatBrPhone } from "@/lib/br";
 import { identificacaoCadastral } from "@/lib/empresa";
-import { useSiteWhatsapp } from "@/lib/site-config";
+import {
+  TITULO_PADRAO,
+  FAVICON_PADRAO,
+  useSiteConfig,
+} from "@/lib/site-config";
 import { iniciarRastreamento } from "@/lib/tracking";
 import { obterConfigSite } from "@/server/leads";
 
 /**
- * Lê o número oficial no servidor, a cada renderização.
+ * Lê as configurações oficiais no servidor, a cada renderização.
  * O handler é removido do bundle do navegador pelo compilador do TanStack Start.
  */
 const carregarConfiguracaoSite = createServerFn({ method: "GET" }).handler(async () => {
   const config = await obterConfigSite();
-  return { whatsapp: config.whatsapp };
+  return {
+    whatsapp: config.whatsapp,
+    titulo: config.titulo ?? TITULO_PADRAO,
+    favicon: config.favicon ?? FAVICON_PADRAO,
+  };
 });
 
 export const Route = createFileRoute("/")({
   loader: () => carregarConfiguracaoSite(),
-  head: () => ({
-    meta: [
-      { title: "Central de Atendimento NIO — Internet fibra e suporte pelo WhatsApp" },
-      {
-        name: "description",
-        content:
-          "Soluções em internet fibra e telecom para você e sua empresa. Faturas, suporte técnico e outros serviços com atendimento humano, direto no WhatsApp.",
-      },
-      { property: "og:type", content: "website" },
-      {
-        property: "og:title",
-        content: "Central de Atendimento NIO — Internet fibra e suporte pelo WhatsApp",
-      },
-      {
-        property: "og:description",
-        content:
-          "Conexão de qualidade com atendimento de gente. Fale direto com quem resolve, sem fila e sem robô.",
-      },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: ({ loaderData }) => {
+    const titulo = loaderData?.titulo ?? TITULO_PADRAO;
+    const favicon = loaderData?.favicon ?? FAVICON_PADRAO;
+    return {
+      meta: [
+        { title: titulo },
+        {
+          name: "description",
+          content:
+            "Soluções em internet fibra e telecom para você e sua empresa. Faturas, suporte técnico e outros serviços com atendimento humano, direto no WhatsApp.",
+        },
+        { property: "og:type", content: "website" },
+        {
+          property: "og:title",
+          content: titulo,
+        },
+        {
+          property: "og:description",
+          content:
+            "Soluções em internet fibra e telecom para você e sua empresa com atendimento direto no WhatsApp.",
+        },
+        { name: "twitter:card", content: "summary" },
+      ],
+      links: [
+        {
+          rel: "icon",
+          href: favicon,
+        },
+      ],
+    };
+  },
   component: Index,
 });
 
@@ -170,11 +188,11 @@ const pilares = [
 const faqs: [string, string][] = [
   [
     "Como peço a 2ª via da fatura?",
-    "Clique em “Falar sobre faturas” e envie seu CPF. Enviamos o boleto ou o Pix no mesmo atendimento.",
+    "Clique em “Falar sobre faturas” no WhatsApp. Enviamos o boleto ou a chave Pix imediatamente para você.",
   ],
   [
     "Minha internet foi cortada por falta de pagamento. Como reconecto?",
-    "Envie seu CPF pelo WhatsApp. Confirmamos o valor em aberto, combinamos o pagamento e a reconexão é feita assim que ele aparece.",
+    "Fale conosco diretamente pelo WhatsApp. Confirmamos os dados, combinamos o pagamento e a reconexão é solicitada de forma ágil.",
   ],
   [
     "Em quanto tempo a internet volta depois de pagar?",
@@ -272,8 +290,9 @@ function SectionTitle({ kicker, title, text }: { kicker: string; title: string; 
 }
 
 function Index() {
-  const { whatsapp: whatsappDoServidor } = Route.useLoaderData();
-  const whatsapp = useSiteWhatsapp(whatsappDoServidor);
+  const loaderData = Route.useLoaderData();
+  const config = useSiteConfig(loaderData);
+  const whatsapp = config.whatsapp;
   const telefone = formatBrPhone(whatsapp);
   const link = (msg: string) => wa(whatsapp, msg);
   const identificacao = identificacaoCadastral();

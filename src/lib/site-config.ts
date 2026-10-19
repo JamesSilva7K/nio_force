@@ -54,28 +54,107 @@ async function buscarWhatsapp(): Promise<string> {
  * `inicial` vem do servidor (SSR) e é a fonte da verdade — evita qualquer troca
  * visível na hidratação e nunca é sobrescrito por um cache antigo do cliente.
  */
-export function useSiteWhatsapp(inicial?: string): string {
-  const inicialValido = typeof inicial === "string" && /^\d{12,13}$/.test(inicial);
+export const TITULO_PADRAO = "NIO | Internet Fibra e Central de Atendimento";
+export const FAVICON_PADRAO = "/favicon.png";
 
-  const [numero, setNumero] = useState<string>(() =>
-    inicialValido && inicial ? inicial : whatsappEmCache(),
+export interface DadosConfigSite {
+  readonly whatsapp: string;
+  readonly titulo: string;
+  readonly favicon: string;
+}
+
+let configCache: { valor: DadosConfigSite; em: number } | null = null;
+let configEmVoo: Promise<DadosConfigSite> | null = null;
+
+function configCacheValido(): boolean {
+  return configCache !== null && Date.now() - configCache.em < VALIDADE_CACHE_MS;
+}
+
+export function configEmCache(): DadosConfigSite {
+  return (
+    configCache?.valor ?? {
+      whatsapp: WHATSAPP_PADRAO,
+      titulo: TITULO_PADRAO,
+      favicon: FAVICON_PADRAO,
+    }
   );
+}
+
+export async function buscarConfigSite(): Promise<DadosConfigSite> {
+  if (configCacheValido() && configCache) return configCache.valor;
+  if (configEmVoo) return configEmVoo;
+
+  configEmVoo = (async () => {
+    try {
+      const resposta = await fetch("/api/config", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      if (!resposta.ok) return configEmCache();
+      const dados = (await resposta.json()) as {
+        whatsapp?: unknown;
+        titulo?: unknown;
+        favicon?: unknown;
+      };
+      const resultado: DadosConfigSite = {
+        whatsapp:
+          typeof dados.whatsapp === "string" && /^\d{12,13}$/.test(dados.whatsapp)
+            ? dados.whatsapp
+            : WHATSAPP_PADRAO,
+        titulo: typeof dados.titulo === "string" && dados.titulo.length >= 3 ? dados.titulo : TITULO_PADRAO,
+        favicon: typeof dados.favicon === "string" && dados.favicon.length > 0 ? dados.favicon : FAVICON_PADRAO,
+      };
+      configCache = { valor: resultado, em: Date.now() };
+      return resultado;
+    } catch {
+      return configEmCache();
+    } finally {
+      configEmVoo = null;
+    }
+  })();
+
+  return configEmVoo;
+}
+
+/**
+ * Hook: devolve a configuração do site (WhatsApp, Título, Favicon).
+ */
+export function useSiteConfig(inicial?: Partial<DadosConfigSite>): DadosConfigSite {
+  const [config, setConfig] = useState<DadosConfigSite>(() => ({
+    whatsapp: inicial?.whatsapp ?? whatsappEmCache(),
+    titulo: inicial?.titulo ?? TITULO_PADRAO,
+    favicon: inicial?.favicon ?? FAVICON_PADRAO,
+  }));
 
   useEffect(() => {
-    if (inicialValido && inicial) {
-      // O valor do SSR é a fonte da verdade: atualiza o cache e não busca de novo.
-      cache = { valor: inicial, em: Date.now() };
+    if (inicial?.whatsapp && inicial?.titulo && inicial?.favicon) {
+      configCache = {
+        valor: {
+          whatsapp: inicial.whatsapp,
+          titulo: inicial.titulo,
+          favicon: inicial.favicon,
+        },
+        em: Date.now(),
+      };
       return;
     }
 
     let ativo = true;
-    void buscarWhatsapp().then((valor) => {
-      if (ativo) setNumero(valor);
+    void buscarConfigSite().then((novo) => {
+      if (ativo) {
+        setConfig(novo);
+        if (typeof document !== "undefined") {
+          document.title = novo.titulo;
+          const link = document.querySelector<HTMLLinkElement>("link[rel*='icon']");
+          if (link) link.href = novo.favicon;
+        }
+      }
     });
+
     return () => {
       ativo = false;
     };
-  }, [inicialValido, inicial]);
+  }, [inicial?.whatsapp, inicial?.titulo, inicial?.favicon]);
 
-  return numero;
+  return config;
 }

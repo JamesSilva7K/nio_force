@@ -228,7 +228,6 @@ export function mensagemLead(lead: Lead, config?: SiteConfig): string {
     "━━━━━━━━━━━━━━━━━━",
     linha("👤 Nome", lead.nome),
     linha("📱 WhatsApp", lead.whatsapp ? formatBrPhone(lead.whatsapp) : undefined, "não informado"),
-    linha("🆔 CPF", lead.cpf, "não informado"),
     linha("📧 E-mail", lead.email),
     "",
     linha("🕒 Entrada", formatarDataHora(lead.criadoEm)),
@@ -369,6 +368,38 @@ export function mensagemInicio(admin: boolean, superAdmin = false): string {
 /** Compatibilidade com telas antigas. */
 export function mensagemAjuda(admin: boolean, superAdmin = false): string {
   return mensagemInicio(admin, superAdmin);
+}
+
+export function mensagemIdentidadeSite(config: SiteConfig): string {
+  const titulo = config.titulo || "NIO | Internet Fibra e Central de Atendimento";
+  const favicon = config.favicon || "/favicon.png";
+  const zap = config.whatsapp ? formatBrPhone(config.whatsapp) : "não configurado";
+
+  return [
+    "⚙️ <b>Identidade da Landing Page</b>",
+    "━━━━━━━━━━━━━━━━━━",
+    "👁️ <b>PREVIEW EM TEMPO REAL:</b>",
+    "",
+    "┌────────────────────────────┐",
+    `│ 🌐 [Favicon]  ${esc(titulo.length > 25 ? titulo.slice(0, 22) + "..." : titulo)} │`,
+    "└────────────────────────────┘",
+    "",
+    `🏷️ <b>Título da Página:</b>`,
+    `<code>${esc(titulo)}</code>`,
+    "",
+    `🖼️ <b>Favicon Atual:</b>`,
+    `<code>${esc(favicon)}</code>`,
+    "",
+    `📱 <b>WhatsApp Oficial:</b>`,
+    `<b>${esc(zap)}</b>`,
+    "",
+    `<i>Última atualização: ${formatarDataHora(config.atualizadoEm)}</i>`,
+    config.atualizadoPor ? `<i>Por: ${esc(config.atualizadoPor)}</i>` : "",
+    "",
+    "<i>Super-administradores podem alterar instantaneamente o título e o ícone através dos botões abaixo.</i>",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function rotuloQualidade(qualidade: Qualidade | undefined): string {

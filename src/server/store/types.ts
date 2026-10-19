@@ -98,11 +98,13 @@ export interface LeadArmazenado {
 
 export interface SiteConfig {
   readonly whatsapp: string;
+  readonly titulo?: string;
+  readonly favicon?: string;
   readonly atualizadoEm: string;
   readonly atualizadoPor?: string;
 }
 
-export type PendenteTipo = "numero_lead" | "numero_site" | "observacao";
+export type PendenteTipo = "numero_lead" | "numero_site" | "observacao" | "titulo_site" | "favicon_site";
 
 export interface PendenteAdmin {
   readonly tipo: PendenteTipo;
@@ -118,6 +120,8 @@ export interface PendenteAdmin {
  */
 export type AcaoSuperAdmin =
   | "mudar_numero_site"
+  | "mudar_titulo_site"
+  | "mudar_favicon_site"
   | "converter_lead"
   | "perder_lead"
   | "usar_numero_lead_no_site";
