@@ -85,7 +85,7 @@ export async function tecladoMenu(): Promise<TecladoInline> {
     inline_keyboard: [
       [await botao("📊 Métricas", "s", "agora"), await botao("📍 Localidades", "g", "geo")],
       [await botao("📱 Dispositivos", "v", "dev"), await botao("🌱 Qualidade", "q", "qual")],
-      [await botao("👥 Leads", "l", "0"), await botao("⚙️ Identidade do Site", "T", "ver")],
+      [await botao("👥 Visitantes", "l", "0"), await botao("⚙️ Identidade do Site", "T", "ver")],
     ],
   };
 }
@@ -122,16 +122,13 @@ export async function tecladoVoltar(): Promise<TecladoInline> {
   };
 }
 
-/** Ficha do lead. */
+/** Ficha e ações da sessão do visitante. */
 export async function tecladoLead(lead: Lead): Promise<TecladoInline> {
   const id = lead.id;
   return {
     inline_keyboard: [
-      [await botao("🔄 Atualizar", "d", id), await botao("🔎 Verificar WhatsApp", "w", id)],
-      [await botao("✏️ Nº do WhatsApp", "e", id), await botao("📝 Observação", "n", id)],
-      [await botao("✅ Converter", "c", id), await botao("⚫ Perder", "p", id)],
-      [await botao("🌐 Usar nº no site", "o", id)],
-      [await botao("👥 Leads", "l", "0"), await botao("🏠 Menu", "m", "home")],
+      [await botao("🔄 Atualizar Sessão", "d", id)],
+      [await botao("👥 Ver Outros Acessos", "l", "0"), await botao("🏠 Menu Principal", "m", "home")],
     ],
   };
 }

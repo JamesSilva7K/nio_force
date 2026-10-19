@@ -204,47 +204,42 @@ export function mensagemLista(
   total: number,
 ): string {
   if (leads.length === 0) {
-    return "👥 <b>Leads</b>\n\nNenhum lead registrado ainda.";
+    return "👥 <b>Visitantes</b>\n\nNenhum visitante registrado ainda.";
   }
 
   const linhas = leads.map((lead, indice) => {
-    const nome = lead.nome ?? (lead.whatsapp ? formatBrPhone(lead.whatsapp) : "sem nome");
-    const qualidade = lead.qualidade ? ROTULO_QUALIDADE[lead.qualidade] : "—";
-    return `${pagina * POR_PAGINA + indice + 1}. <b>${esc(nome)}</b>\n     ${ETAPA_LABEL[lead.etapa]} · ${qualidade} · ${formatarHora(lead.criadoEm)}`;
+    const foiParaZap = lead.eventos.some((e) => e.nome === "clique_whatsapp");
+    const status = foiParaZap ? "🟢 WhatsApp" : "👀 Navegando";
+    const local = [lead.cidade, lead.uf].filter(Boolean).join("/") || "Brasil";
+    return `${pagina * POR_PAGINA + indice + 1}. <b>Sessão #${lead.id.slice(0, 8)}</b> (${esc(local)})\n     ${status} · ${lead.dispositivo ?? "Dispositivo"} · ${formatarHora(lead.criadoEm)}`;
   });
 
   return [
-    `👥 <b>Leads</b> — ${total} no total`,
+    `👥 <b>Histórico de Visitantes</b> — ${total} acessos`,
     `Página ${pagina + 1}/${totalPaginas}`,
     "━━━━━━━━━━━━━━━━━━",
     linhas.join("\n"),
   ].join("\n");
 }
 
-/** Ficha completa do lead. */
+/** Ficha da sessão do visitante. */
 export function mensagemLead(lead: Lead, config?: SiteConfig): string {
+  const foiParaZap = lead.eventos.some((e) => e.nome === "clique_whatsapp");
   const linhas = [
-    `${ETAPA_LABEL[lead.etapa]} · <code>#${lead.id.slice(0, 8)}</code>`,
+    `📊 <b>Sessão de Tráfego</b> · <code>#${lead.id.slice(0, 8)}</code>`,
     "━━━━━━━━━━━━━━━━━━",
-    linha("👤 Nome", lead.nome),
-    linha("📱 WhatsApp", lead.whatsapp ? formatBrPhone(lead.whatsapp) : undefined, "não informado"),
-    linha("📧 E-mail", lead.email),
-    "",
-    linha("🕒 Entrada", formatarDataHora(lead.criadoEm)),
-    linha("👣 Visitas", String(lead.visitas)),
-    linha("🔗 Origem", origem(lead)),
-    linha("🌐 Página", lead.paginaEntrada),
-    linha("📍 Local", localDoLead(lead)),
+    linha("🟢 Status WhatsApp", foiParaZap ? "✅ Clicou e abriu WhatsApp" : "👀 Apenas visualizou a página"),
+    linha("🕒 Primeiro Acesso", formatarDataHora(lead.criadoEm)),
+    linha("👣 Páginas/Visitas", String(lead.visitas)),
+    linha("🔗 Origem do Tráfego", origem(lead)),
+    linha("🌐 Página de Entrada", lead.paginaEntrada),
+    linha("📍 Localidade Estimada", localDoLead(lead)),
     linha(
       "💻 Dispositivo",
       [lead.dispositivo, lead.sistema, lead.navegador].filter(Boolean).join(" · ") || undefined,
     ),
-    linha(
-      "🌱 Qualidade",
-      lead.qualidade ? `${ROTULO_QUALIDADE[lead.qualidade]} (risco ${lead.risco ?? 0})` : undefined,
-    ),
     "",
-    "<b>Últimos eventos</b>",
+    "<b>Histórico da sessão:</b>",
     ultimosEventos(lead),
   ];
 
@@ -267,30 +262,29 @@ export function mensagemLead(lead: Lead, config?: SiteConfig): string {
   return linhas.join("\n");
 }
 
-/** Notificação de novo lead / transição para o WhatsApp. */
+/** Notificação de novo visitante / clique para o WhatsApp. */
 export function mensagemAlerta(lead: Lead): string {
-  const titulo =
-    lead.etapa === "whatsapp"
-      ? "🟢 <b>Lead foi para o WhatsApp</b>"
-      : "🆕 <b>Novo lead no site</b>";
+  const foiParaWhatsapp = lead.etapa === "whatsapp";
+  const titulo = foiParaWhatsapp
+    ? "🟢 <b>Novo Clique para o WhatsApp!</b>"
+    : "👀 <b>Novo Visitante na Landing Page</b>";
 
   return [
     titulo,
+    "━━━━━━━━━━━━━━━━━━",
+    foiParaWhatsapp
+      ? "<i>Um visitante acabou de clicar no botão e foi redirecionado para o atendimento no WhatsApp oficial.</i>"
+      : "<i>Um visitante acabou de acessar a sua landing page.</i>",
     "",
-    linha("👤 Nome", lead.nome, "não informado"),
-    linha("📱 WhatsApp", lead.whatsapp ? formatBrPhone(lead.whatsapp) : undefined, "não informado"),
-    linha("📍 Local", localDoLead(lead)),
+    linha("📍 Origem/Local", localDoLead(lead)),
     linha(
       "💻 Dispositivo",
       [lead.dispositivo, lead.sistema, lead.navegador].filter(Boolean).join(" · ") || undefined,
     ),
-    linha("🔗 Origem", origem(lead)),
-    linha("🕒", formatarDataHora(lead.criadoEm)),
-    ...(lead.qualidade
-      ? ["", `🌱 ${ROTULO_QUALIDADE[lead.qualidade]} (risco ${lead.risco ?? 0})`]
-      : []),
+    linha("🔗 Campanha/Referência", origem(lead)),
+    linha("🕒 Horário", formatarDataHora(lead.criadoEm)),
     "",
-    `<code>#${lead.id.slice(0, 8)}</code>`,
+    `<i>Sessão:</i> <code>#${lead.id.slice(0, 8)}</code>`,
   ].join("\n");
 }
 
