@@ -22,6 +22,15 @@ export interface RedisConfig {
   readonly prefix: string;
 }
 
+export interface EdgeConfigCredenciais {
+  /** Connection string completa do Edge Config (var EDGE_CONFIG). */
+  readonly connectionString: string;
+  /** Token pessoal da Vercel API (var VERCEL_API_TOKEN). */
+  readonly apiToken: string;
+  /** ID do Edge Config store, ex: ecfg_xxx (var VERCEL_EDGE_CONFIG_ID). */
+  readonly edgeConfigId: string;
+}
+
 export interface AppConfig {
   readonly isProduction: boolean;
   readonly telegram: TelegramConfig;
@@ -30,6 +39,7 @@ export interface AppConfig {
   readonly defaultWhatsapp: string;
   readonly allowedHosts: readonly string[];
   readonly redis: RedisConfig | null;
+  readonly edgeConfig: EdgeConfigCredenciais | null;
   readonly siteUrl: string;
   readonly nodeEnv: string;
 }
@@ -101,6 +111,11 @@ export function getConfig(): AppConfig {
   const redisToken =
     read("UPSTASH_REDIS_REST_TOKEN") ?? read("KV_REST_API_TOKEN") ?? read("REDIS_REST_TOKEN") ?? "";
 
+  // Vercel Edge Config — persiste SiteConfig no plano gratuito da Vercel.
+  const edgeConnectionString = read("EDGE_CONFIG") ?? "";
+  const vercelApiToken = read("VERCEL_API_TOKEN") ?? "";
+  const vercelEdgeConfigId = read("VERCEL_EDGE_CONFIG_ID") ?? "";
+
   const defaultWhatsapp = read("DEFAULT_WHATSAPP") ?? FALLBACK_WHATSAPP;
 
   const adminIds = readAdminIds();
@@ -134,6 +149,14 @@ export function getConfig(): AppConfig {
             prefix: read("REDIS_PREFIX") ?? "nio",
           }
         : null,
+    edgeConfig:
+      edgeConnectionString.length > 0 && vercelApiToken.length > 0 && vercelEdgeConfigId.length > 0
+        ? {
+            connectionString: edgeConnectionString,
+            apiToken: vercelApiToken,
+            edgeConfigId: vercelEdgeConfigId,
+          }
+        : null,
   };
 }
 
@@ -150,9 +173,11 @@ export function diagnosticarConfiguracao(config: AppConfig = getConfig()): {
   if (config.telegram.adminIds.length === 0) faltando.push("TELEGRAM_ADMIN_ID");
   if (!config.telegram.webhookSecret) faltando.push("TELEGRAM_WEBHOOK_SECRET");
   if (!config.encryptionKey) faltando.push("LEAD_ENCRYPTION_KEY");
-  if (!config.redis) {
+  if (!config.redis && !config.edgeConfig) {
     avisos.push(
-      "Sem UPSTASH_REDIS_REST_URL/TOKEN os leads ficam apenas em memória e são perdidos a cada cold start.",
+      "⚠️ Sem Redis nem Edge Config: configurações (número WhatsApp, título) são perdidas a cada cold start. " +
+      "Configure EDGE_CONFIG + VERCEL_API_TOKEN + VERCEL_EDGE_CONFIG_ID (grátis no plano free da Vercel) " +
+      "ou UPSTASH_REDIS_REST_URL/TOKEN para persistência.",
     );
   }
   if (config.allowedHosts.length === 0) {

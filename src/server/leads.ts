@@ -12,7 +12,7 @@ import { novoUuid } from "./crypto";
 import { getConfig } from "./env";
 import { ErroNaoEncontrado, ErroValidacao } from "./errors";
 import { cifrarPii, decifrarPii, hashBusca } from "./seguranca";
-import { getStore } from "./store";
+import { getStore, obterConfigPersistente, salvarConfigPersistente } from "./store";
 import type { Qualidade } from "./antifraude";
 import {
   diaLocal,
@@ -391,7 +391,7 @@ export const TITULO_PADRAO = "NIO | Internet Fibra e Central de Atendimento";
 export const FAVICON_PADRAO = "/favicon.png";
 
 export async function obterConfigSite(): Promise<SiteConfig> {
-  const config = await getStore().obterConfig();
+  const config = await obterConfigPersistente();
   if (config) {
     return {
       whatsapp: config.whatsapp || getConfig().defaultWhatsapp,
@@ -421,7 +421,7 @@ export async function definirWhatsappSite(numero: string, autor: string): Promis
     atualizadoEm: new Date().toISOString(),
     atualizadoPor: sanitizeTexto(autor, 40),
   };
-  await getStore().salvarConfig(config);
+  await salvarConfigPersistente(config);
   return config;
 }
 
@@ -437,7 +437,7 @@ export async function definirTituloSite(titulo: string, autor: string): Promise<
     atualizadoEm: new Date().toISOString(),
     atualizadoPor: sanitizeTexto(autor, 40),
   };
-  await getStore().salvarConfig(config);
+  await salvarConfigPersistente(config);
   return config;
 }
 
@@ -453,7 +453,7 @@ export async function definirFaviconSite(favicon: string, autor: string): Promis
     atualizadoEm: new Date().toISOString(),
     atualizadoPor: sanitizeTexto(autor, 40),
   };
-  await getStore().salvarConfig(config);
+  await salvarConfigPersistente(config);
   return config;
 }
 

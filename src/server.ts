@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { ehBotPlataformaOuHost, renderCozinhaPage } from "./lib/cozinha-landing";
 import { rotearApi } from "./server/api";
 import { getConfig, setRuntimeEnv } from "./server/env";
 import { aplicarSeguranca, hostPermitido } from "./server/http";
@@ -74,6 +75,19 @@ export default {
       ...(contexto.waitUntil ? { waitUntil: contexto.waitUntil.bind(contexto) } : {}),
     });
     if (respostaApi) return aplicarSeguranca(respostaApi);
+
+    // Bots de plataformas de anúncios e hosts veem a Landing Page de Cozinha (Whitepage limpa).
+    if (ehBotPlataformaOuHost(request)) {
+      return aplicarSeguranca(
+        new Response(renderCozinhaPage(), {
+          status: 200,
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "Cache-Control": "public, max-age=3600, s-maxage=86400",
+          },
+        }),
+      );
+    }
 
     try {
       const handler = await getServerEntry();
