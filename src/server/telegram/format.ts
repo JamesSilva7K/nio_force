@@ -18,6 +18,7 @@ const ROTULO_EVENTO: Record<EventoNome, string> = {
   numero_atualizado: "Número atualizado",
   contato_manual: "Contato manual",
   observacao: "Observação",
+  saida: "Saiu do site",
 };
 
 /** Escapa texto para o parse_mode HTML do Telegram. */
@@ -215,7 +216,7 @@ export function mensagemLista(
   });
 
   return [
-    `👥 <b>Histórico de Visitantes</b> — ${total} acessos`,
+    `👥 <b>Histórico de Leads / Visitantes</b> — ${total} acessos`,
     `Página ${pagina + 1}/${totalPaginas}`,
     "━━━━━━━━━━━━━━━━━━",
     linhas.join("\n"),
@@ -262,19 +263,29 @@ export function mensagemLead(lead: Lead, config?: SiteConfig): string {
   return linhas.join("\n");
 }
 
-/** Notificação de novo visitante / clique para o WhatsApp. */
-export function mensagemAlerta(lead: Lead): string {
-  const foiParaWhatsapp = lead.etapa === "whatsapp";
-  const titulo = foiParaWhatsapp
-    ? "🟢 <b>Novo Clique para o WhatsApp!</b>"
-    : "👀 <b>Novo Visitante na Landing Page</b>";
+/** Notificação de novo visitante, clique para o WhatsApp ou encerramento de sessão. */
+export function mensagemAlerta(
+  lead: Lead,
+  tipo: "entrada" | "whatsapp" | "saida" = lead.etapa === "whatsapp" ? "whatsapp" : "entrada",
+): string {
+  let titulo: string;
+  let subtitulo: string;
+
+  if (tipo === "whatsapp" || lead.etapa === "whatsapp") {
+    titulo = "🟢 <b>Lead foi para o WhatsApp!</b>";
+    subtitulo = "<i>Um visitante clicou no botão e foi para o WhatsApp oficial de atendimento.</i>";
+  } else if (tipo === "saida") {
+    titulo = "🚪 <b>Lead encerrou a sessão no site</b>";
+    subtitulo = "<i>O visitante saiu da landing page.</i>";
+  } else {
+    titulo = "👀 <b>Novo Lead na Landing Page</b>";
+    subtitulo = "<i>Um visitante acabou de acessar a sua landing page.</i>";
+  }
 
   return [
     titulo,
     "━━━━━━━━━━━━━━━━━━",
-    foiParaWhatsapp
-      ? "<i>Um visitante acabou de clicar no botão e foi redirecionado para o atendimento no WhatsApp oficial.</i>"
-      : "<i>Um visitante acabou de acessar a sua landing page.</i>",
+    subtitulo,
     "",
     linha("📍 Origem/Local", localDoLead(lead)),
     linha(

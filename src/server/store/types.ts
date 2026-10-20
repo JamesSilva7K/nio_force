@@ -24,6 +24,7 @@ export const EVENTOS = [
   "numero_atualizado",
   "contato_manual",
   "observacao",
+  "saida",
 ] as const;
 export type EventoNome = (typeof EVENTOS)[number];
 

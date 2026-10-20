@@ -103,13 +103,19 @@ export function getConfig(): AppConfig {
 
   const defaultWhatsapp = read("DEFAULT_WHATSAPP") ?? FALLBACK_WHATSAPP;
 
+  const adminIds = readAdminIds();
+  const superAdminIds = readSuperAdminIds();
+  // Super-administradores possuem poderes estendidos e devem constar na lista
+  // geral de administradores para ter acesso ao bot e receber notificações.
+  const todosAdminIds = Array.from(new Set([...adminIds, ...superAdminIds]));
+
   return {
     isProduction,
     nodeEnv: read("NODE_ENV") ?? (isProduction ? "production" : "development"),
     telegram: {
       token,
-      adminIds: readAdminIds(),
-      superAdminIds: readSuperAdminIds(),
+      adminIds: todosAdminIds,
+      superAdminIds,
       webhookSecret,
       // Assinatura dos botões: usa segredo dedicado quando existir, senão deriva
       // do token do bot (que nunca sai do servidor).

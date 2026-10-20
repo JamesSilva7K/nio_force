@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "vite dev --port 8080",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
@@ -13,7 +13,9 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "telegram:poll": "node --env-file=.env.local scripts/telegram-poll.mjs"
+    "telegram:poll": "node --env-file=.env.local scripts/telegram-poll.mjs",
+    "telegram:setup": "node --env-file=.env.local scripts/setup-webhook.mjs",
+    "telegram:info": "node --env-file=.env.local scripts/setup-webhook.mjs --info"
   },
   "overrides": {
     "rolldown": "1.2.1"

@@ -59,12 +59,12 @@ const DURACAO_APROVACAO_MS = 30 * 60 * 1_000;
 // ---------------------------------------------------------------------------
 
 function ehAdmin(chatId: number): boolean {
-  const { adminIds } = getConfig().telegram;
-  if (adminIds.length === 0) {
+  const { adminIds, superAdminIds } = getConfig().telegram;
+  if (adminIds.length === 0 && superAdminIds.length === 0) {
     console.error("[telegram] TELEGRAM_ADMIN_ID não configurado: nenhum acesso liberado.");
     return false;
   }
-  return adminIds.includes(chatId);
+  return adminIds.includes(chatId) || superAdminIds.includes(chatId);
 }
 
 /**
@@ -272,17 +272,64 @@ export async function processarUpdate(update: AtualizacaoTelegram): Promise<void
   if (!mensagem) return;
 
   const chatId = mensagem.chat.id;
+  const texto = (mensagem.text ?? "").trim();
+  const comando = texto.split(/\s+/)[0]?.split("@")[0]?.toLowerCase();
+
+  // /id e /me funcionam para qualquer usuário para permitir descobrir o próprio ID
+  if (comando === "/id" || comando === "/me") {
+    const isSA = ehSuperAdmin(chatId);
+    const isAdmin = ehAdmin(chatId);
+    const papel = isSA
+      ? "👑 <b>Super-Administrador</b> (acesso total e aprovações)"
+      : isAdmin
+        ? "🛡️ <b>Administrador</b> (gestão de leads e visualização)"
+        : "👤 <b>Não autorizado</b> (adicione este ID em <code>TELEGRAM_ADMIN_ID</code> ou <code>TELEGRAM_SUPERADMIN_ID</code>)";
+
+    await enviarMensagem(
+      chatId,
+      [
+        "🆔 <b>Identificação no Telegram</b>",
+        "━━━━━━━━━━━━━━━━━━",
+        `Chat ID: <code>${chatId}</code>`,
+        `Usuário: ${esc(autorDa(mensagem.from))}`,
+        `Papel: ${papel}`,
+      ].join("\n"),
+    );
+    return;
+  }
 
   if (!ehAdmin(chatId)) {
     await enviarMensagem(chatId, mensagemInicio(false));
     return;
   }
 
-  const texto = (mensagem.text ?? "").trim();
+  const isSA = ehSuperAdmin(chatId);
 
-  if (texto === "/start" || texto === "/menu" || texto === "/ajuda") {
-    const isSA = ehSuperAdmin(chatId);
+  if (
+    comando === "/start" ||
+    comando === "/menu" ||
+    comando === "/painel" ||
+    comando === "/ajuda" ||
+    comando === "/help"
+  ) {
     await enviarMensagem(chatId, mensagemInicio(true, isSA), await tecladoMenu());
+    return;
+  }
+
+  if (comando === "/metricas") {
+    const dados = await obterMetricasDetalhadas();
+    await enviarMensagem(chatId, mensagemMetricas(dados), await tecladoSecao());
+    return;
+  }
+
+  if (comando === "/leads") {
+    const todos = await listarLeadsRecentes();
+    const pag = paginar(todos, 0);
+    await enviarMensagem(
+      chatId,
+      mensagemLista(pag.leads, pag.pagina, pag.totalPaginas, todos.length),
+      await tecladoLista(pag),
+    );
     return;
   }
 
@@ -735,14 +782,18 @@ async function tratarCallback(cq: CallbackQuery): Promise<void> {
   }
 }
 
-/** Envia o alerta de novo lead / transição para o WhatsApp (uma mensagem só). */
-export async function notificarAdministrador(lead: Lead): Promise<void> {
-  const { adminIds } = getConfig().telegram;
-  if (adminIds.length === 0) return;
+/** Envia o alerta de novo lead, clique para WhatsApp ou encerramento de sessão. */
+export async function notificarAdministrador(
+  lead: Lead,
+  tipo: "entrada" | "whatsapp" | "saida" = lead.etapa === "whatsapp" ? "whatsapp" : "entrada",
+): Promise<void> {
+  const { adminIds, superAdminIds } = getConfig().telegram;
+  const destinatarios = Array.from(new Set([...adminIds, ...superAdminIds]));
+  if (destinatarios.length === 0) return;
 
   const teclado = await tecladoLead(lead);
-  const texto = mensagemAlerta(lead);
-  for (const chatId of adminIds) {
+  const texto = mensagemAlerta(lead, tipo);
+  for (const chatId of destinatarios) {
     await enviarMensagem(chatId, texto, teclado);
   }
 }

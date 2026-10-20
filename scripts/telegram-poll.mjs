@@ -11,7 +11,6 @@
 
 const BOT = process.env.TELEGRAM_BOT_TOKEN;
 const SEGREDO = process.env.TELEGRAM_WEBHOOK_SECRET;
-const ALVO = process.env.LOCAL_WEBHOOK ?? "http://127.0.0.1:8080/api/telegram/webhook";
 
 if (!BOT) {
   console.error("[poll] TELEGRAM_BOT_TOKEN ausente. Rode com --env-file=.env.local");
@@ -24,6 +23,28 @@ if (!SEGREDO) {
 
 const dormir = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function detectarAlvo() {
+  if (process.env.LOCAL_WEBHOOK) return process.env.LOCAL_WEBHOOK;
+  const candidatos = [
+    process.env.SITE_URL ? `${process.env.SITE_URL.replace(/\/$/, "")}/api/telegram/webhook` : null,
+    "http://127.0.0.1:8080/api/telegram/webhook",
+    "http://127.0.0.1:3000/api/telegram/webhook",
+    "http://127.0.0.1:5173/api/telegram/webhook",
+  ].filter(Boolean);
+
+  for (const url of candidatos) {
+    try {
+      const ping = await fetch(url.replace("/telegram/webhook", "/health"), {
+        signal: AbortSignal.timeout(600),
+      });
+      if (ping.status < 500) return url;
+    } catch {
+      // continua procurando porta ativa
+    }
+  }
+  return candidatos[0] || "http://127.0.0.1:8080/api/telegram/webhook";
+}
+
 let offset = 0;
 let rodando = true;
 process.on("SIGINT", () => {
@@ -31,10 +52,11 @@ process.on("SIGINT", () => {
   console.log("\n[poll] encerrando…");
 });
 
-console.log(`[poll] escutando o bot e encaminhando para ${ALVO}`);
+console.log("[poll] iniciando escuta do bot Telegram...");
 
 while (rodando) {
   try {
+    const alvo = await detectarAlvo();
     const params = new URLSearchParams({
       timeout: "25",
       allowed_updates: JSON.stringify(["message", "callback_query"]),
@@ -47,25 +69,35 @@ while (rodando) {
     const dados = await resposta.json();
 
     if (!dados.ok) {
-      console.error("[poll] Telegram recusou:", dados.description ?? resposta.status);
+      console.error("[poll] Telegram recusou getUpdates:", dados.description ?? resposta.status);
       await dormir(3_000);
       continue;
     }
 
     for (const update of dados.result ?? []) {
-      offset = Math.max(offset, update.update_id + 1);
-      const envio = await fetch(ALVO, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-telegram-bot-api-secret-token": SEGREDO,
-        },
-        body: JSON.stringify(update),
-      });
-      console.log(`[poll] update ${update.update_id} → ${envio.status}`);
-      if (envio.status >= 400) {
-        const corpo = await envio.text();
-        console.log("  resposta:", corpo.slice(0, 200));
+      try {
+        const envio = await fetch(alvo, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-telegram-bot-api-secret-token": SEGREDO,
+          },
+          body: JSON.stringify(update),
+          signal: AbortSignal.timeout(5_000),
+        });
+
+        console.log(`[poll] update #${update.update_id} → ${alvo} (${envio.status})`);
+        if (envio.status >= 400) {
+          const corpo = await envio.text();
+          console.log("  resposta do servidor:", corpo.slice(0, 200));
+        }
+        // Só avança o offset após tentar enviar com sucesso
+        offset = Math.max(offset, update.update_id + 1);
+      } catch {
+        console.error(`[poll] ⚠️ Falha ao conectar no servidor local (${alvo}).`);
+        console.error(`[poll] 👉 Certifique-se de iniciar o servidor em outro terminal: npm run dev`);
+        await dormir(3_000);
+        break; // Tenta o mesmo update novamente no próximo ciclo
       }
     }
   } catch (erro) {

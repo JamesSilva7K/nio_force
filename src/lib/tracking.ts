@@ -80,7 +80,7 @@ interface CorpoEvento {
 function enviar(corpo: CorpoEvento): void {
   if (!ehNavegador()) return;
   const agora = Date.now();
-  if (agora - ultimoEnvio < INTERVALO_MINIMO_MS) return;
+  if (corpo.evento !== "saida" && agora - ultimoEnvio < INTERVALO_MINIMO_MS) return;
   ultimoEnvio = agora;
 
   const dados = JSON.stringify({ ...corpo, website: "" });
@@ -179,6 +179,25 @@ export function iniciarRastreamento(): void {
     },
     { capture: true, passive: true },
   );
+
+  let saidaRegistrada = false;
+  const registrarSaida = () => {
+    if (saidaRegistrada) return;
+    saidaRegistrada = true;
+    const base = corpoBase();
+    if (!base) return;
+    const inicio = sessao ? Date.parse(sessao.primeiraVisita) : Number.NaN;
+    const segundos = Number.isFinite(inicio)
+      ? Math.max(1, Math.round((Date.now() - inicio) / 1000))
+      : undefined;
+    enviar({
+      ...base,
+      evento: "saida",
+      ...(typeof segundos === "number" ? { rotulo: `${segundos}s no site` } : {}),
+    });
+  };
+
+  window.addEventListener("pagehide", registrarSaida, { capture: true, passive: true });
 }
 
 /** Exposto para o painel administrativo e para testes. */

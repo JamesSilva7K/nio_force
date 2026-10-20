@@ -238,3 +238,31 @@ describe("resposta a mensagem específica", () => {
     await expect(obterConfigSite()).resolves.toMatchObject({ whatsapp: "5521988887777" });
   });
 });
+
+describe("comandos diretos e super-admin", () => {
+  it("responde ao comando /id com o identificador do chat", async () => {
+    await processarUpdate(mensagemSimples("/id"));
+    const envio = chamadasDe("sendMessage")[0];
+    expect(String(envio?.["text"])).toContain("Identificação no Telegram");
+    expect(String(envio?.["text"])).toContain(String(ADMIN));
+  });
+
+  it("permite que super-admin acesse o painel mesmo se TELEGRAM_ADMIN_ID estiver vazio", async () => {
+    vi.stubEnv("TELEGRAM_ADMIN_ID", "");
+    vi.stubEnv("TELEGRAM_SUPERADMIN_ID", "999");
+
+    const update: AtualizacaoTelegram = {
+      update_id: updateId++,
+      message: {
+        message_id: 1,
+        chat: { id: 999 },
+        from: { id: 999, first_name: "SuperAdmin" },
+        text: "/start",
+      },
+    };
+
+    await processarUpdate(update);
+    const envio = chamadasDe("sendMessage")[0];
+    expect(String(envio?.["text"])).toContain("Super-Administrador");
+  });
+});

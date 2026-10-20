@@ -123,10 +123,15 @@ async function tratarLead(request: Request, ctx: ContextoExecucao): Promise<Resp
 
   const primeiroWhatsapp =
     lead.eventos.filter((evento) => evento.nome === "clique_whatsapp").length === 1;
-  const deveAvisar = (criado || primeiroWhatsapp) && deveNotificar(avaliacao.qualidade);
+  const primeiraSaida =
+    nomeEvento === "saida" &&
+    lead.eventos.filter((evento) => evento.nome === "saida").length === 1;
+  const deveAvisar =
+    (criado || primeiroWhatsapp || primeiraSaida) && deveNotificar(avaliacao.qualidade);
 
   if (deveAvisar) {
-    const promessa = notificarAdministrador(lead).catch((erro) => {
+    const tipo = primeiroWhatsapp ? "whatsapp" : primeiraSaida ? "saida" : "entrada";
+    const promessa = notificarAdministrador(lead, tipo).catch((erro) => {
       console.error("[api] falha ao notificar administrador:", erro);
     });
     if (ctx.waitUntil) ctx.waitUntil(promessa);
